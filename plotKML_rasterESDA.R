@@ -19,18 +19,33 @@ require(raster)
 #-------------------------------------------------------------------------------------------  
 # Create KML vector layer of Charge Point locations in 2015
 #-------------------------------------------------------------------------------------------
-# Tutorial test
-# Create bubble out of stations (Value 1, label=Provider?)
-
-
 ChargeStations <- read.csv("ChargeStations.csv", header = T, sep=";")
-View(ChargeStations)
+CP_Stations$Address <- paste(CP_Stations$Street, CP_Stations$HouseNumber, sep="_")
 CP_Stations <- ChargeStations[ !duplicated(ChargeStations["CSExternalID"]),]
 coordinates(CP_Stations) <- ~Longitude+Latitude
 proj4string(CP_Stations) <- CRS("+proj=longlat +datum=WGS84")
-str(CP_Stations)
-plotKML(CP_Stations["Provider"], colour_scale=rep("#FFFF00", 2), points_names=CP_Stations$Provider) # For color schemes: https://en.wikipedia.org/wiki/Web_colors#HTML_color_names
-CP_Essent <- paste(CP_Stations, Provider = "Essent")
+data(SAGA_pal)
+plotKML(CP_Stations["Provider"], colour_scale= SAGA_pal[[1]], points_names=CP_Stations$Address)
+
+
+
+
+
+keep_descr <- c("Provider", "Address")
+CP_description <- CP_Stations[keep_descr]
+View(CP_descr)
+CP_descr <- data.frame(CP_description)
+
+
+shape <- "http://maps.google.com/mapfiles/kml/pal2/icon18.png"
+kml_open("CP_Operators.kml")
+kml_description(CP_descr, caption ="Address")
+kml_aes(CP_Stations, shape=shape, colour=(Provider), balloon = TRUE )
+kml_layer(CP_Stations["Provider"], points_names=CP_Stations$Provider)
+kml_close("CP_Operators.kml")
+kml_View("CP_Operators.kml")
+
+
 
 # Use altitude parameter (for polygon plotting)
 plotKML(NuonClean01["kWh"], altitude=runif(length(NuonClean01))*500)
