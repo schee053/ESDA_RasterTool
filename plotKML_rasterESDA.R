@@ -2,7 +2,7 @@
 # Maintainer     : Daniel Scheerooren (daniel.scheerooren@wur.nl);
 # Status         : In progress
 # Last update    : 04-12-2015
-# Note           : Subscript of main_rasterESDA.R
+# Note           : Subscript of main_rasterESDA.R, make sure "preProcessing_rasterESDA.R" script has run, before starting this script.
 
 
 # Set directory
@@ -15,25 +15,37 @@ require(plyr)
 require(RSAGA)
 require(rgdal)
 require(raster)
+#-------------------------------------------------------------------------------------------  
+# Questions about plotKML:
+#-------------------------------------------------------------------------------------------
+
+
+# How to add a legend in "plotKML" (instead of kml_layer)?
+# How to to make same color legend and map in kml_layer/png (see bellow)?
+# It is possible to plot multiple layers in one kml. Also with "plotKML"?
+# What is the difference between KML, plotKML and kml_layer
+  # e.g. line 74 (plot NUON) only works with KML, and not plotKML...?
+
 
 #-------------------------------------------------------------------------------------------  
 # Create KML vector layer of Charge Point locations in 2015
 #-------------------------------------------------------------------------------------------
 # Possible arguments KML function: http://rgm.ogalab.net/RGM/R_rdfile?f=plotKML/man/plotKML.Rd&d=R_CC 
+# http://plotkml.r-forge.r-project.org/plotKML.html
 ChargeStations <- read.csv("ChargeStations.csv", header = T, sep=";")
 CP_Stations$Address <- paste(CP_Stations$Street, CP_Stations$HouseNumber, sep="_")
 CP_Stations <- ChargeStations[ !duplicated(ChargeStations["CSExternalID"]),]
 coordinates(CP_Stations) <- ~Longitude+Latitude
 proj4string(CP_Stations) <- CRS("+proj=longlat +datum=WGS84")
-data(SAGA_pal)
-#plotKML(CP_Stations["Provider"], colour_scale_factor= SAGA_pal[[1]], points_names=CP_Stations$Address, balloon=T)
+# Remove unnecessary collomn
+CP_stat_keep <- c("CPExternalID", "Street", "HouseNumber", "PostalCode", "City", "Provider", "VehicleType")
+CP_StationsClean <- CP_Stations[CP_stat_keep] 
+# One color projection
+plotKML(CP_StationsClean, colour_scale=rep("#829285", 2), points_names="", file.name="Locations2015.kml", balloon=T)  #http://www.color-hex.com/ 
+  # Two color (differ between Nuon and Essent)
+  #data(SAGA_pal)
+  #plotKML(CP_StationsClean["Provider"], colour_scale_factor= SAGA_pal[[1]], points_names=CP_Stations$Address, balloon=T)
 
-plotKML(CP_Stations["Provider"], colour_scale_factor= SAGA_pal[[1]], points_names=CP_Stations$Address, balloon=T, obj.summary=T)
-
-
-# How to add a legend in "plotKML" (instead of kml_layer)?
-# How to determine the information in the balloon?
-# How to to make same color legend and map (see bellow)?
 
 # Make description table
 keep_descr <- c("Provider", "Address")
@@ -41,7 +53,7 @@ CP_description <- CP_Stations[keep_descr]
 CP_descr <- data.frame(CP_description)
 str(CP_descr)
 # Same with kml_open
-shape <- "http://maps.google.com/mapfiles/kml/pal2/icon18.png"
+shape <- "http://maps.google.com/mapfiles/kml/pal2/icon18.png" #http://kml4earth.appspot.com/icons.html
 kml_open("CP_Operators.kml")
 kml_description(CP_descr, caption ="Address")
 kml_aes(CP_Stations, shape = shape, colour=(Provider), balloon = TRUE ) 
@@ -51,6 +63,79 @@ kml_layer(CP_Stations["Provider"], shape = shape, colour_scale=SAGA_pal[[1]], po
 kml_close("CP_Operators.kml")
 kml_View("CP_Operators.kml")
 str(CP_Stations)
+
+#-------------------------------------------------------------------------------------------  
+# Create STIDF from Nuon Januari 2013
+#-------------------------------------------------------------------------------------------
+
+NuonClean01$Address <- paste(NuonClean01$Street, NuonClean01$HouseNumber, sep="_")
+CP_NUON01 <- SpatialPoints(NuonClean01[,c("Longitude","Latitude")])
+proj4string(CP_NUON01) <- CRS("+proj=longlat +datum=WGS84")
+hist(NuonClean01$kWh)
+CP_NUON01.st <- STIDF(CP_NUON01, time=NuonClean01$BEGIN_CS, data=NuonClean01[,c("Address", "Provider","kWh")], endTime=NuonClean01$END_CS)
+View(CP_NUON01.st)
+
+#-------------------------------------------------------------------------------------------  
+# Create STIDF from Nuon June 2013
+#-------------------------------------------------------------------------------------------
+
+NuonClean06$Address <- paste(NuonClean06$Street, NuonClean06$HouseNumber, sep="_")
+CP_NUON06 <- SpatialPoints(NuonClean06[,c("Longitude","Latitude")])
+proj4string(CP_NUON06) <- CRS("+proj=longlat +datum=WGS84")
+hist(NuonClean06$kWh)
+CP_NUON06.st <- STIDF(CP_NUON06, time=NuonClean06$BEGIN_CS, data=NuonClean06[,c("Address", "Provider","kWh")], endTime=NuonClean06$END_CS)
+View(CP_NUON06.st)
+
+#-------------------------------------------------------------------------------------------  
+# Plot STIDF in hight from Nuon Januari 2013
+#-------------------------------------------------------------------------------------------
+
+kml(CP_NUON01.st[1:7378], colour=log1p(kWh), shape=shape, labels="", kmz=F, balloon=T)
+
+# Doesn't work: plotKML(CP_NUON01.st, dtime = 24*3600, altitude = CP_NUON01$kWh * 10, altitudeMode="relativeToGround", colour=log1p(CP_NUON01$kWh), shape=shape, labels="")
+NuonClean01.sp <- NuonClean01
+coordinates(NuonClean01.sp) <- ~ Longitude + Latitude
+proj4string(NuonClean01.sp) <- CRS("+proj=longlat +datum=WGS84")
+kml_open("NuonClean01_High.kml")
+kml_layer.SpatialPoints(NuonClean01.sp, TimeSpan.begin=format(NuonClean01.sp$BEGIN_CS, "%Y-%m-%dT%H:%M:%SZ"), TimeSpan.end=format(NuonClean01.sp$END_CS, "%Y-%m-%dT%H:%M:%SZ"), altitude=kWh*10, colour=log1p(kWh), shape=shape, labels=kWh, altitudeMode="relativeToGround")
+kml_close("NuonClean01_High.kml")
+kml_View("NuonClean01_High.kml")
+## When balloon = T: 
+## ERROR: internal error: Huge input lookup
+## ERROR: Extra content at the end of the document
+
+#-------------------------------------------------------------------------------------------  
+# Plot STIDF in hight from Nuon June 2013
+#-------------------------------------------------------------------------------------------
+
+NuonClean06.sp <- NuonClean06
+coordinates(NuonClean06.sp) <- ~ Longitude + Latitude
+proj4string(NuonClean06.sp) <- CRS("+proj=longlat +datum=WGS84")
+kml_open("NuonClean06_High.kml")
+kml_layer.SpatialPoints(NuonClean06.sp, TimeSpan.begin=format(NuonClean06.sp$BEGIN_CS, "%Y-%m-%dT%H:%M:%SZ"), TimeSpan.end=format(NuonClean06.sp$END_CS, "%Y-%m-%dT%H:%M:%SZ"), altitude=kWh*10, colour=log1p(kWh), shape=shape, labels=kWh, altitudeMode="relativeToGround")
+kml_close("NuonClean06_High.kml")
+kml_View("NuonClean06_High.kml")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## From tutorial:
 
 
 # Use altitude parameter (for polygon plotting)
