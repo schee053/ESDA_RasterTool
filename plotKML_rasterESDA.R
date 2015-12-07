@@ -6,11 +6,8 @@
 
 
 # Set directory
-mainDir <- "M:/GeoDataMscThesis/"
-subDir <- "Datasets"
-outputDir <- 
-  dir.create(file.path(mainDir, subDir), showWarnings = FALSE)
-setwd(file.path(mainDir, subDir))
+mainDir <- "M:/MyDocuments/ESDA_RasterTool/"
+getwd()
 
 # Download and open required packages
 require(plotKML)
@@ -24,12 +21,16 @@ require(raster)
 #-------------------------------------------------------------------------------------------
 # Tutorial test
 # Create bubble out of stations (Value 1, label=Provider?)
-data(Stations)
-coordinates(Stations) <- ~Latitudu+Longitude
-proj4string(Stations) <- CRS("+proj=longlat +datum=WGS84")
-bubble(Stations_["Provider"])
-plotKML(Stations["Provider"], colour_scale=rep("#FFFF00", 2), points_names="") # For color schemes: https://en.wikipedia.org/wiki/Web_colors#HTML_color_names
 
+
+ChargeStations <- read.csv("ChargeStations.csv", header = T, sep=";")
+View(ChargeStations)
+CP_Stations <- ChargeStations[ !duplicated(ChargeStations["CSExternalID"]),]
+coordinates(CP_Stations) <- ~Longitude+Latitude
+proj4string(CP_Stations) <- CRS("+proj=longlat +datum=WGS84")
+str(CP_Stations)
+plotKML(CP_Stations["Provider"], colour_scale=rep("#FFFF00", 2), points_names=CP_Stations$Provider) # For color schemes: https://en.wikipedia.org/wiki/Web_colors#HTML_color_names
+CP_Essent <- paste(CP_Stations, Provider = "Essent")
 
 # Use altitude parameter (for polygon plotting)
 plotKML(NuonClean01["kWh"], altitude=runif(length(NuonClean01))*500)

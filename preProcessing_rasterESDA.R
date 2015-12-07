@@ -6,12 +6,13 @@
 
 
 # Set directory
-mainDir <- "E:/ESDA_RasterTool/"
+mainDir <- "M:/MyDocuments/ESDA_RasterTool/"
 subDir <- "Datasets"
 outputDir <- "Output"
 dir.create(file.path(mainDir, subDir), showWarnings = F)
 dir.create(file.path(mainDir, outputDir), showWarnings = F)
 setwd(file.path(mainDir, subDir))
+getwd()
 
 # Download and open required packages
 if (!require(plyr)) install.packages('plyr')
@@ -23,11 +24,12 @@ if (!require(RCurl)) install.packages('RCurl')
 
 # Download Charge point dataset
 download.file("https://api.essent.nl/generic/downloadChargingStations?latitude_low=52.30567123031878&longtitude_low=4.756801078125022&latitude_high=52.43772606594848&longtitude_high=5.086390921875022&format=CSV",destfile="ChargeStations.csv",method="libcurl")
-ChargeStations <- read.csv("ChargeStations.csv", header = T, sep=";")
+Stations <- read.csv("ChargeStations.csv", header = T, sep=";")
 # Create unique ID for join opperation
 Stations$join_ID <- paste(Stations$Street, Stations$HouseNumber, Stations$PostalCode, sep="_")
+View(Stations)
 # Remove double entries based on unique values in column UNIQUE_ID
-Stations <- ChargeStations[ !duplicated(ChargeStations["UNIQUE_ID"]),]
+Stations <- Stations[ !duplicated(Stations["CPExternalID"]),]
 # Remove white space from PostalCode
 Stations$PostalCode <- gsub(" ", "", Stations$PostalCode, fixed = T)
 
@@ -35,11 +37,12 @@ Stations$PostalCode <- gsub(" ", "", Stations$PostalCode, fixed = T)
 # pre-process Nuon charge session dataset
 #-------------------------------------------------------------------------------------------
 
-# Mannualy put charge data into Datasets directory and save as CSV-file.
+# Mannualy put charge data into workspace directory and save as CSV-file.
 list.files()
 
 # Read csv files and create R-objects
 NuonRaw <- read.csv("rapportage_verbruiksdata 201301 + 201306.csv",  header = T, sep=",")
+View(NuonRaw)
 # Remove double sessions  
 NuonRaw <- NuonRaw[ !duplicated(NuonRaw["Sessie"]),] # Why are there double sessions in the first place?
 # Set date and time 
