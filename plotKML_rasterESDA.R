@@ -19,32 +19,38 @@ require(raster)
 #-------------------------------------------------------------------------------------------  
 # Create KML vector layer of Charge Point locations in 2015
 #-------------------------------------------------------------------------------------------
+# Possible arguments KML function: http://rgm.ogalab.net/RGM/R_rdfile?f=plotKML/man/plotKML.Rd&d=R_CC 
 ChargeStations <- read.csv("ChargeStations.csv", header = T, sep=";")
 CP_Stations$Address <- paste(CP_Stations$Street, CP_Stations$HouseNumber, sep="_")
 CP_Stations <- ChargeStations[ !duplicated(ChargeStations["CSExternalID"]),]
 coordinates(CP_Stations) <- ~Longitude+Latitude
 proj4string(CP_Stations) <- CRS("+proj=longlat +datum=WGS84")
 data(SAGA_pal)
-plotKML(CP_Stations["Provider"], colour_scale= SAGA_pal[[1]], points_names=CP_Stations$Address)
+#plotKML(CP_Stations["Provider"], colour_scale_factor= SAGA_pal[[1]], points_names=CP_Stations$Address, balloon=T)
+
+plotKML(CP_Stations["Provider"], colour_scale_factor= SAGA_pal[[1]], points_names=CP_Stations$Address, balloon=T, obj.summary=T)
 
 
+# How to add a legend in "plotKML" (instead of kml_layer)?
+# How to determine the information in the balloon?
+# How to to make same color legend and map (see bellow)?
 
-
-
+# Make description table
 keep_descr <- c("Provider", "Address")
 CP_description <- CP_Stations[keep_descr]
-View(CP_descr)
 CP_descr <- data.frame(CP_description)
-
-
+str(CP_descr)
+# Same with kml_open
 shape <- "http://maps.google.com/mapfiles/kml/pal2/icon18.png"
 kml_open("CP_Operators.kml")
 kml_description(CP_descr, caption ="Address")
-kml_aes(CP_Stations, shape=shape, colour=(Provider), balloon = TRUE )
-kml_layer(CP_Stations["Provider"], points_names=CP_Stations$Provider)
+kml_aes(CP_Stations, shape = shape, colour=(Provider), balloon = TRUE ) 
+kml_legend.bar(CP_Stations$Provider, legend.pal=SAGA_pal[[1]], legend.file = "Providers.png") # legend not the same color as stations.
+kml_screen(image.file = "Providers.png", position = "TC", sname = "Providers")
+kml_layer(CP_Stations["Provider"], shape = shape, colour_scale=SAGA_pal[[1]], points_names=CP_Stations$Address, balloon=T) # colour, description, balloon don't work.
 kml_close("CP_Operators.kml")
 kml_View("CP_Operators.kml")
-
+str(CP_Stations)
 
 
 # Use altitude parameter (for polygon plotting)
