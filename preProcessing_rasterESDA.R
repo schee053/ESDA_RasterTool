@@ -25,24 +25,25 @@ if (!require(RCurl)) install.packages('RCurl')
 # Download Charge point dataset
 download.file("https://api.essent.nl/generic/downloadChargingStations?latitude_low=52.30567123031878&longtitude_low=4.756801078125022&latitude_high=52.43772606594848&longtitude_high=5.086390921875022&format=CSV",destfile="ChargeStations.csv",method="libcurl")
 Stations <- read.csv("ChargeStations.csv", header = T, sep=";")
+# Remove white space from PostalCode
+Stations$PostalCode <- gsub(" ", "", Stations$PostalCode, fixed = T)
 # Create unique ID for join opperation
 Stations$join_ID <- paste(Stations$Street, Stations$HouseNumber, Stations$PostalCode, sep="_")
 View(Stations)
 # Remove double entries based on unique values in column UNIQUE_ID
 Stations <- Stations[ !duplicated(Stations["CPExternalID"]),]
-# Remove white space from PostalCode
-Stations$PostalCode <- gsub(" ", "", Stations$PostalCode, fixed = T)
+
 
 #-------------------------------------------------------------------------------------------  
 # pre-process Nuon charge session dataset
 #-------------------------------------------------------------------------------------------
 
-# Mannualy put charge data into workspace directory and save as CSV-file.
+# Mannualy put charge data into workspace directory and save as CSV-file!!
 list.files()
 
 # Read csv files and create R-objects
 NuonRaw <- read.csv("rapportage_verbruiksdata 201301 + 201306.csv",  header = T, sep=",")
-View(NuonRaw)
+View(Stations)
 # Remove double sessions  
 NuonRaw <- NuonRaw[ !duplicated(NuonRaw["Sessie"]),] # Why are there double sessions in the first place?
 # Set date and time 
@@ -64,7 +65,7 @@ NuonRaw.Sessions <- NuonRaw.Stations[ !duplicated(NuonRaw.Stations["Session_ID"]
 # Remove NA values in Latitude column 
 NuonRaw.Sessions <- NuonRaw.Sessions[!is.na(NuonRaw.Sessions$Latitude),] # Many failed matches (2778!) 
                     #Maybe because of case sensitive join opperation?
-
+View(EssentRaw01)
 # Remove unnecessary columns
 keep <- c("Session_ID", "BEGIN_CS", "END_CS", "CONNECT_TIME", "kWh", "Street", "HouseNumber", "PostalCode", "Latitude", "Longitude", "Provider")
 NuonRaw_clean <- NuonRaw.Sessions[keep]
@@ -76,11 +77,12 @@ View(NuonClean01)
 #-------------------------------------------------------------------------------------------  
 # pre-process Essent charge session dataset
 #-------------------------------------------------------------------------------------------
+# Mannualy put charge data into workspace directory and save as CSV-file!!
+list.files()
+
 # Read csv files and create R-objects
 EssentRaw01 <- read.csv("exp_201301-62014.csv",  header = T, sep=",")
 EssentRaw06 <- read.csv("exp_201306-62014.csv",  header = T, sep=",")
-
-View(EssentRaw01)
 
 # Set date and time 
 EssentRaw01$BEGIN_DA <- as.character(EssentRaw01$BEGIN_LOAD_DATE)
@@ -90,44 +92,54 @@ EssentRaw01$END_TI <- as.character(EssentRaw01$END_LOAD_TIME)
 EssentRaw01$BEGIN_CS <- as.POSIXct(paste(EssentRaw01$BEGIN_DA, EssentRaw01$BEGIN_TI), format="%d.%m.%Y %H:%M:%S", tz = "GMT")
 EssentRaw01$END_CS <- as.POSIXct(paste(EssentRaw01$END_DA, EssentRaw01$END_TI), format="%d.%m.%Y %H:%M:%S",  tz = "GMT")
 
-# Convert energy to numeric
-EssentRaw01$kWh <- as.character(EssentRaw01$ENERGIE)
-EssentRaw01$kWhNum <- as.numeric(EssentRaw01$kWh) # Error: (list) object cannot be coerced to type 'double'
+EssentRaw06$BEGIN_DA <- as.character(EssentRaw06$BEGIN_LOAD_DATE)
+EssentRaw06$BEGIN_TI <- as.character(EssentRaw06$BEGIN_LOAD_TIME)
+EssentRaw06$END_DA <- as.character(EssentRaw06$END_LOAD_DATE)
+EssentRaw06$END_TI <- as.character(EssentRaw06$END_LOAD_TIME)
+EssentRaw06$BEGIN_CS <- as.POSIXct(paste(EssentRaw06$BEGIN_DA, EssentRaw06$BEGIN_TI), format="%d.%m.%Y %H:%M:%S", tz = "GMT")
+EssentRaw06$END_CS <- as.POSIXct(paste(EssentRaw06$END_DA, EssentRaw06$END_TI), format="%d.%m.%Y %H:%M:%S",  tz = "GMT")
+# Convert energy from factor to numeric
+EssentRaw01$ENERGIE <- as.numeric(EssentRaw01$ENERGIE)
+EssentRaw06$ENERGIE <- as.numeric(EssentRaw06$ENERGIE)
 
-#[...]
-# One row = one begin time, end time, UNIQUE_ID, kWh value
-ddply(EssentRaw01,.(EssentRaw01$BEGIN_CS, EssentRaw01$UNIQUE_ID),summarize, sum=sum(EssentRaw01$kWh), number=length(EssentRaw01$UNIQUE_ID))
-test123 <- aggregate(cbind(kWh) ~ UNIQUE_ID + BEGIN_CS, data = EssentRaw01, FUN = sum )
-View(test123)
-
-# Recalculate charge time
-EssentRaw01$CONNECT_TIME <- (EssentRaw01$BEGIN_CS - EssentRaw01$END_CS)
-
-# Remove double sessions  
-EssentRaw01 <- EssentRaw01[ !duplicated(EssentRaw01[ ,14]),] # Why are there double sessions in the first place?
-
-# Rename column by name: (for merge purposes)
+# Rename columns: 
 names(EssentRaw01)[names(EssentRaw01)=="STREET"] <- "Street"
 names(EssentRaw01)[names(EssentRaw01)=="HOUSE_NUM1"] <- "HouseNumber"
 names(EssentRaw01)[names(EssentRaw01)=="POST_CODE1"] <- "PostalCode"
 names(EssentRaw01)[names(EssentRaw01)=="CHARGE_DURATION"] <- "CONNECT_TIME"
 names(EssentRaw01)[names(EssentRaw01)=="ENERGIE"] <- "kWh"
+names(EssentRaw01)[names(EssentRaw01)=="UNIQUE_ID"] <- "Session_ID"
+
+names(EssentRaw06)[names(EssentRaw06)=="STREET"] <- "Street"
+names(EssentRaw06)[names(EssentRaw06)=="HOUSE_NUM1"] <- "HouseNumber"
+names(EssentRaw06)[names(EssentRaw06)=="POST_CODE1"] <- "PostalCode"
+names(EssentRaw06)[names(EssentRaw06)=="CHARGE_DURATION"] <- "CONNECT_TIME"
+names(EssentRaw06)[names(EssentRaw06)=="ENERGIE"] <- "kWh"
+names(EssentRaw06)[names(EssentRaw06)=="UNIQUE_ID"] <- "Session_ID"
 
 # Remove white space from PostalCode
+EssentRaw01$PostalCode <- as.character(EssentRaw01$PostalCode)
 EssentRaw01$PostalCode <- gsub(" ", "", EssentRaw01$PostalCode, fixed = T)
+EssentRaw06$PostalCode <- as.character(EssentRaw06$PostalCode)
+EssentRaw06$PostalCode <- gsub(" ", "", EssentRaw06$PostalCode, fixed = T)
 
 # Join Charge data with xy-coordinates
 EssentRaw01$join_ID <- paste(EssentRaw01$Street, EssentRaw01$HouseNumber, EssentRaw01$PostalCode, sep="_")
-EssentRaw01.Stations <- join(EssentRaw01, Stations, by="join_ID", type = "left")
-# Remove duplicates in joined file 
-EssentRaw01.Sessions <- EssentRaw01.Stations[ !duplicated(EssentRaw01.Stations[ ,"Number of column unique ID"]),]
+EssentRaw01.Stations <- join(EssentRaw01, Stations, by="join_ID", type = "left", match = "all")
+EssentRaw06$join_ID <- paste(EssentRaw06$Street, EssentRaw06$HouseNumber, EssentRaw06$PostalCode, sep="_")
+EssentRaw06.Stations <- join(EssentRaw06, Stations, by="join_ID", type = "left")
+View(EssentRaw06.Stations)
 # Remove NA values in Latitude column 
-EssentRaw01.Sessions <- EssentRaw01.Sessions[!is.na(EssentRaw01.Sessions$Latitude),] 
+EssentRaw01.Stations <- EssentRaw01.Stations[!is.na(EssentRaw01.Stations$Latitude),] 
+EssentRaw06.Stations <- EssentRaw06.Stations[!is.na(EssentRaw06.Stations$Latitude),] 
+View(EssentRaw01.Stations)
+str(keep)
 # Remove unnecessary columns
-EssentRaw01_clean <- EssentRaw01.Sessions[keep]
+EssentClean01 <- EssentRaw01.Stations[keep]
+EssentClean06 <- EssentRaw06.Stations[keep]
 
-
-View(EssentRaw01)
+View(EssentClean01)
+View(EssentClean06)
 
 #-------------------------------------------------------------------------------------------  
 # Write object to csv file for viewing outside R environment

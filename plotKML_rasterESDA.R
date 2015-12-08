@@ -45,9 +45,8 @@ plotKML(CP_StationsClean, colour_scale=rep("#829285", 2), points_names="", file.
   # Two color (differ between Nuon and Essent)
   #data(SAGA_pal)
   #plotKML(CP_StationsClean["Provider"], colour_scale_factor= SAGA_pal[[1]], points_names=CP_Stations$Address, balloon=T)
-
-
 # Make description table
+
 keep_descr <- c("Provider", "Address")
 CP_description <- CP_Stations[keep_descr]
 CP_descr <- data.frame(CP_description)
@@ -63,6 +62,20 @@ kml_layer(CP_Stations["Provider"], shape = shape, colour_scale=SAGA_pal[[1]], po
 kml_close("CP_Operators.kml")
 kml_View("CP_Operators.kml")
 str(CP_Stations)
+
+#------------------------------------------------------------------------------------------- 
+# Create KML vector layer of Charge Point locations in 2013
+#-------------------------------------------------------------------------------------------
+NuonClean01$LonLat <- paste(NuonClean01$Longitude, NuonClean01$Latitude)
+EssentClean06$LonLat < paste(EssentClean06$Longitude, EssentClean01$Latitude)
+Stations$LonLat < paste(Stations$Longitude, Stations$Latitude) ## ERROR: logical(0)
+
+NuonXYunique <- NuonClean01[ !duplicated(NuonClean01["LonLat"]),]
+EssentXYunique <- EssentClean06[ !duplicated(EssentClean06["LonLat"]),]
+XYunique <- rbind(NuonXYunique, EssentXYunique)
+
+Stations2013 <- join(XYunique, Stations, by = LonLat , type = "left", match = "first")
+
 
 #-------------------------------------------------------------------------------------------  
 # Create STIDF from Nuon Januari 2013
