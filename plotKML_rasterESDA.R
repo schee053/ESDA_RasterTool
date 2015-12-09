@@ -30,39 +30,26 @@ require(raster)
 #-------------------------------------------------------------------------------------------  
 # Create KML vector layer of Charge Point locations in 2015
 #-------------------------------------------------------------------------------------------
-# Possible arguments KML function: http://rgm.ogalab.net/RGM/R_rdfile?f=plotKML/man/plotKML.Rd&d=R_CC 
-# http://plotkml.r-forge.r-project.org/plotKML.html
-ChargeStations <- read.csv("ChargeStations.csv", header = T, sep=";")
-CP_Stations$Address <- paste(CP_Stations$Street, CP_Stations$HouseNumber, sep="_")
-CP_Stations <- ChargeStations[ !duplicated(ChargeStations["CSExternalID"]),]
-coordinates(CP_Stations) <- ~Longitude+Latitude
-proj4string(CP_Stations) <- CRS("+proj=longlat +datum=WGS84")
-# Remove unnecessary collomn
-CP_stat_keep <- c("CPExternalID", "Street", "HouseNumber", "PostalCode", "City", "Provider", "VehicleType")
-CP_StationsClean <- CP_Stations[CP_stat_keep] 
-# One color projection
-plotKML(CP_StationsClean, colour_scale=rep("#829285", 2), points_names="", file.name="Locations2015.kml", balloon=T)  #http://www.color-hex.com/ 
-  # Two color (differ between Nuon and Essent)
-  #data(SAGA_pal)
-  #plotKML(CP_StationsClean["Provider"], colour_scale_factor= SAGA_pal[[1]], points_names=CP_Stations$Address, balloon=T)
-# Make description table
+kml_stations <- function (csv.name, shape, kml.name, legend=TRUE, balloon = TRUE){
+  obj <- read.csv(csv.name, header = T, sep=";")
+  obj$Address <- paste(obj$Street, obj$HouseNumber, sep=" ")
+  obj <- obj[ !duplicated(obj["CSExternalID"]),]
+  coordinates(obj) <- ~Longitude+Latitude
+  proj4string(obj) <- CRS("+proj=longlat +datum=WGS84")
+  # Remove unnecessary collomn
+  obj_keep <- c("CPExternalID", "Street", "HouseNumber", "PostalCode", "City", "Provider", "VehicleType", "Address")
+  obj <- obj[obj_keep] 
+  
+  shape <- shape
+  kml_open(kml.name)
+  kml_legend.bar(obj$Provider, legend.pal=SAGA_pal[[1]][c(1,20)], legend.file = "Providers.png") 
+  kml_screen(image.file = "Providers.png", position = "UL", sname = "Providers")
+  kml_layer(obj[c("Provider","Address")], shape = shape, LabelScale =.5, colour=Provider, colour_scale=SAGA_pal[[1]], points_names="", balloon=T)
+  kml_close(kml.name)
+  kml_View(kml.name)
+}
 
-keep_descr <- c("Provider", "Address")
-CP_description <- CP_Stations[keep_descr]
-CP_descr <- data.frame(CP_description)
-str(CP_descr)
-# Same with kml_open
-shape <- "http://maps.google.com/mapfiles/kml/pal2/icon18.png" #http://kml4earth.appspot.com/icons.html
-kml_open("CP_Operators.kml")
-kml_description(CP_descr, caption ="Address")
-kml_aes(CP_Stations, shape = shape, colour=(Provider), balloon = TRUE ) 
-kml_legend.bar(CP_Stations$Provider, legend.pal=SAGA_pal[[1]], legend.file = "Providers.png") # legend not the same color as stations.
-kml_screen(image.file = "Providers.png", position = "TC", sname = "Providers")
-kml_layer(CP_Stations["Provider"], shape = shape, colour_scale=SAGA_pal[[1]], points_names=CP_Stations$Address, balloon=T) # colour, description, balloon don't work.
-kml_close("CP_Operators.kml")
-kml_View("CP_Operators.kml")
-str(CP_Stations)
-
+#kml_stations("ChargeStations.csv", "http://maps.google.com/mapfiles/kml/paddle/wht-blank.png", "Stations2015.kml", legend=TRUE, balloon=TRUE)
 #------------------------------------------------------------------------------------------- 
 # Create KML vector layer of Charge Point locations in 2013
 #-------------------------------------------------------------------------------------------
@@ -75,7 +62,6 @@ EssentXYunique <- EssentClean06[ !duplicated(EssentClean06["LonLat"]),]
 XYunique <- rbind(NuonXYunique, EssentXYunique)
 
 Stations2013 <- join(XYunique, Stations, by = LonLat , type = "left", match = "first")
-
 
 #-------------------------------------------------------------------------------------------  
 # Create STIDF from Nuon Januari 2013
@@ -91,6 +77,8 @@ View(CP_NUON01.st)
 #-------------------------------------------------------------------------------------------  
 # Create STIDF from Nuon June 2013
 #-------------------------------------------------------------------------------------------
+# Possible arguments KML function: http://rgm.ogalab.net/RGM/R_rdfile?f=plotKML/man/plotKML.Rd&d=R_CC 
+# http://plotkml.r-forge.r-project.org/plotKML.html
 
 NuonClean06$Address <- paste(NuonClean06$Street, NuonClean06$HouseNumber, sep="_")
 CP_NUON06 <- SpatialPoints(NuonClean06[,c("Longitude","Latitude")])
@@ -105,17 +93,26 @@ View(CP_NUON06.st)
 
 kml(CP_NUON01.st[1:7378], colour=log1p(kWh), shape=shape, labels="", kmz=F, balloon=T)
 
-# Doesn't work: plotKML(CP_NUON01.st, dtime = 24*3600, altitude = CP_NUON01$kWh * 10, altitudeMode="relativeToGround", colour=log1p(CP_NUON01$kWh), shape=shape, labels="")
-NuonClean01.sp <- NuonClean01
-coordinates(NuonClean01.sp) <- ~ Longitude + Latitude
-proj4string(NuonClean01.sp) <- CRS("+proj=longlat +datum=WGS84")
-kml_open("NuonClean01_High.kml")
-kml_layer.SpatialPoints(NuonClean01.sp, TimeSpan.begin=format(NuonClean01.sp$BEGIN_CS, "%Y-%m-%dT%H:%M:%SZ"), TimeSpan.end=format(NuonClean01.sp$END_CS, "%Y-%m-%dT%H:%M:%SZ"), altitude=kWh*10, colour=log1p(kWh), shape=shape, labels=kWh, altitudeMode="relativeToGround")
-kml_close("NuonClean01_High.kml")
-kml_View("NuonClean01_High.kml")
-## When balloon = T: 
-## ERROR: internal error: Huge input lookup
-## ERROR: Extra content at the end of the document
+Session_vertical <- function (obj, kml.name){ 
+  obj.sp <- obj
+  coordinates(obj.sp) <- ~ Longitude + Latitude
+  proj4string(obj.sp) <- CRS("+proj=longlat +datum=WGS84")
+  
+  kml_open(kml.name)
+  kml_layer.SpatialPoints(obj.sp[c("kWh","Address", "Provider")], TimeSpan.begin=format(obj.sp$BEGIN_CS, "%Y-%m-%dT%H:%M:%SZ"), TimeSpan.end=format(obj.sp$END_CS, "%Y-%m-%dT%H:%M:%SZ"), altitude=kWh*10, colour=log1p(kWh), colour_scale=R_pal[["heat_colors"]], shape=shape, labels="", altitudeMode="relativeToGround", balloon = TRUE)
+  kml_close(kml.name)
+  kml_View(kml.name)
+} 
+
+Session_vertical(NuonClean01, "NuonJanuari2013.kml")
+
+## Spacetime density:
+library(spatstat)
+NuonClean01$t <- as.integer((unclass(NuonClean01$BEGIN_CS) + unclass(NuonClean01$END_CS))/2)
+NuonClean01.ppx <- ppx(data=NuonClean01[,c("Longitude","Latitude","t","kWh")], coord.type=c("s","s","t","m"))
+int <- intensity(NuonClean01.ppx)
+
+#kml.tiles(obj=NuonClean01.sp, folder.name="NuonClean", file.name="NuonClean01_tiled.kml", block.x=0.05, cpus=10, home.url=".", desc="NuonClean", open.kml=TRUE, return.list=FALSE, TimeSpan.begin=format(NuonClean01.sp$BEGIN_CS, "%Y-%m-%dT%H:%M:%SZ"), TimeSpan.end=format(NuonClean01.sp$END_CS, "%Y-%m-%dT%H:%M:%SZ"), altitude=kWh*10, colour=log1p(kWh), shape=shape, labels=kWh, altitudeMode="relativeToGround")
 
 #-------------------------------------------------------------------------------------------  
 # Plot STIDF in hight from Nuon June 2013

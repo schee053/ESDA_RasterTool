@@ -21,59 +21,59 @@ if (!require(RCurl)) install.packages('RCurl')
 #-------------------------------------------------------------------------------------------  
 # pre-process Charge Point Dataset (latitude/longitude)
 #-------------------------------------------------------------------------------------------
+get.stations <- function(webaddress, file.name){
+  # Download Charge point dataset
+  download.file(webaddress,destfile=file.name,method="libcurl")
+  Stations <- read.csv(file.name, header = T, sep=";")
+  # Remove white space from PostalCode
+  Stations$PostalCode <- gsub(" ", "", Stations$PostalCode, fixed = T)
+  # Create address for join opperation
+  Stations$Address <- paste(Stations$Street, Stations$HouseNumber, Stations$PostalCode, sep=" ")
+  # Remove double entries based on unique values in column "CPExternalID" 
+  Stations <- Stations[ !duplicated(Stations["CPExternalID"]),]
+} 
 
-# Download Charge point dataset
-download.file("https://api.essent.nl/generic/downloadChargingStations?latitude_low=52.30567123031878&longtitude_low=4.756801078125022&latitude_high=52.43772606594848&longtitude_high=5.086390921875022&format=CSV",destfile="ChargeStations.csv",method="libcurl")
-Stations <- read.csv("ChargeStations.csv", header = T, sep=";")
-# Remove white space from PostalCode
-Stations$PostalCode <- gsub(" ", "", Stations$PostalCode, fixed = T)
-# Create unique ID for join opperation
-Stations$join_ID <- paste(Stations$Street, Stations$HouseNumber, Stations$PostalCode, sep="_")
-View(Stations)
-# Remove double entries based on unique values in column UNIQUE_ID
-Stations <- Stations[ !duplicated(Stations["CPExternalID"]),]
-
-
+# get.stations("https://api.essent.nl/generic/downloadChargingStations?latitude_low=52.30567123031878&longtitude_low=4.756801078125022&latitude_high=52.43772606594848&longtitude_high=5.086390921875022&format=CSV", "ChargeStations.csv")
 #-------------------------------------------------------------------------------------------  
 # pre-process Nuon charge session dataset
 #-------------------------------------------------------------------------------------------
 
 # Mannualy put charge data into workspace directory and save as CSV-file!!
 list.files()
-
-# Read csv files and create R-objects
-NuonRaw <- read.csv("rapportage_verbruiksdata 201301 + 201306.csv",  header = T, sep=",")
-View(Stations)
-# Remove double sessions  
-NuonRaw <- NuonRaw[ !duplicated(NuonRaw["Sessie"]),] # Why are there double sessions in the first place?
-# Set date and time 
-NuonRaw$BEGIN_CS <- as.POSIXct(paste(NuonRaw$Start), format="%d-%m-%Y %H:%M", tz = "GMT")
-NuonRaw$END_CS <- as.POSIXct(paste(NuonRaw$Eind), format="%d-%m-%Y %H:%M",  tz = "GMT")
-# Rename columns: 
-names(NuonRaw)[names(NuonRaw)=="Straat"] <- "Street"
-names(NuonRaw)[names(NuonRaw)=="Huisnummer"] <- "HouseNumber"
-names(NuonRaw)[names(NuonRaw)=="Postcode"] <- "PostalCode"
-names(NuonRaw)[names(NuonRaw)=="Laadtijd"] <- "CONNECT_TIME"
-names(NuonRaw)[names(NuonRaw)=="Sessie"] <- "Session_ID"
-# Remove white space from PostalCode
-NuonRaw$PostalCode <- gsub(" ", "", NuonRaw$PostalCode, fixed = T)
-# Join Charge data with xy-coordinates
-NuonRaw$join_ID <- paste(NuonRaw$Street, NuonRaw$HouseNumber, NuonRaw$PostalCode, sep="_")
-NuonRaw.Stations <- join(NuonRaw, Stations, by="join_ID", type = "left")
-# Remove duplicates in joined file 
-NuonRaw.Sessions <- NuonRaw.Stations[ !duplicated(NuonRaw.Stations["Session_ID"]),]
-# Remove NA values in Latitude column 
-NuonRaw.Sessions <- NuonRaw.Sessions[!is.na(NuonRaw.Sessions$Latitude),] # Many failed matches (2778!) 
-                    #Maybe because of case sensitive join opperation?
-View(EssentRaw01)
-# Remove unnecessary columns
-keep <- c("Session_ID", "BEGIN_CS", "END_CS", "CONNECT_TIME", "kWh", "Street", "HouseNumber", "PostalCode", "Latitude", "Longitude", "Provider")
-NuonRaw_clean <- NuonRaw.Sessions[keep]
-# Split Nuon dataset into Januari and June 
-NuonClean01 <- subset(NuonRaw_clean, BEGIN_CS <= as.POSIXct("2013-01-31 00:00"))
-NuonClean06 <- subset(NuonRaw_clean, BEGIN_CS > as.POSIXct("2013-01-31 00:00"))
-
-View(NuonClean01)
+csv.file <- "rapportage_verbruiksdata 201301 + 201306.csv"
+prep_NUON <- function (csv.file){
+  # Read csv files and create R-objects
+  NuonRaw <- read.csv(csv.file,  header = T, sep=",")
+  # Remove double sessions  
+  NuonRaw <- NuonRaw[ !duplicated(NuonRaw["Sessie"]),] # Why are there double sessions in the first place?
+  # Set date and time 
+  NuonRaw$BEGIN_CS <- as.POSIXct(paste(NuonRaw$Start), format="%d-%m-%Y %H:%M", tz = "GMT")
+  NuonRaw$END_CS <- as.POSIXct(paste(NuonRaw$Eind), format="%d-%m-%Y %H:%M",  tz = "GMT")
+    # Rename columns: 
+  names(NuonRaw)[names(NuonRaw)=="Straat"] <- "Street"
+  names(NuonRaw)[names(NuonRaw)=="Huisnummer"] <- "HouseNumber"
+  names(NuonRaw)[names(NuonRaw)=="Postcode"] <- "PostalCode"
+  names(NuonRaw)[names(NuonRaw)=="Laadtijd"] <- "CONNECT_TIME"
+  names(NuonRaw)[names(NuonRaw)=="Sessie"] <- "Session_ID"
+  # Remove white space from PostalCode
+  NuonRaw$PostalCode <- gsub(" ", "", NuonRaw$PostalCode, fixed = T)
+  # Join Charge data with xy-coordinates
+  NuonRaw$Address <- paste(NuonRaw$Street, NuonRaw$HouseNumber, NuonRaw$PostalCode, sep=" ")
+  View(NuonRaw)
+  NuonRaw.Stations <- join(NuonRaw, Stations, by="Address", type = "left")
+  # Remove duplicates in joined file 
+  NuonRaw.Sessions <- NuonRaw.Stations[ !duplicated(NuonRaw.Stations["Session_ID"]),]
+  # Remove NA values in Latitude column 
+  NuonRaw.Sessions <- NuonRaw.Sessions[!is.na(NuonRaw.Sessions$Latitude),] # Many failed matches (2778!) 
+  #Maybe because of case sensitive join opperation?
+  View(EssentRaw01)
+  # Remove unnecessary columns
+  keep <- c("Session_ID", "BEGIN_CS", "END_CS", "CONNECT_TIME", "kWh", "Street", "HouseNumber", "PostalCode", "Address", "Latitude", "Longitude", "Provider")
+  NuonRaw_clean <- NuonRaw.Sessions[keep]
+  # Split Nuon dataset into Januari and June 
+  NuonClean01 <- subset(NuonRaw_clean, BEGIN_CS <= as.POSIXct("2013-01-31 00:00"))
+  NuonClean06 <- subset(NuonRaw_clean, BEGIN_CS > as.POSIXct("2013-01-31 00:00"))
+} 
 #-------------------------------------------------------------------------------------------  
 # pre-process Essent charge session dataset
 #-------------------------------------------------------------------------------------------
@@ -124,10 +124,10 @@ EssentRaw06$PostalCode <- as.character(EssentRaw06$PostalCode)
 EssentRaw06$PostalCode <- gsub(" ", "", EssentRaw06$PostalCode, fixed = T)
 
 # Join Charge data with xy-coordinates
-EssentRaw01$join_ID <- paste(EssentRaw01$Street, EssentRaw01$HouseNumber, EssentRaw01$PostalCode, sep="_")
-EssentRaw01.Stations <- join(EssentRaw01, Stations, by="join_ID", type = "left", match = "all")
-EssentRaw06$join_ID <- paste(EssentRaw06$Street, EssentRaw06$HouseNumber, EssentRaw06$PostalCode, sep="_")
-EssentRaw06.Stations <- join(EssentRaw06, Stations, by="join_ID", type = "left")
+EssentRaw01$Address <- paste(EssentRaw01$Street, EssentRaw01$HouseNumber, EssentRaw01$PostalCode, sep=" ")
+EssentRaw01.Stations <- join(EssentRaw01, Stations, by="Address", type = "left", match = "all")
+EssentRaw06$Address <- paste(EssentRaw06$Street, EssentRaw06$HouseNumber, EssentRaw06$PostalCode, sep=" ")
+EssentRaw06.Stations <- join(EssentRaw06, Stations, by="Address", type = "left")
 View(EssentRaw06.Stations)
 # Remove NA values in Latitude column 
 EssentRaw01.Stations <- EssentRaw01.Stations[!is.na(EssentRaw01.Stations$Latitude),] 
