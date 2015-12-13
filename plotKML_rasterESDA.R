@@ -49,7 +49,7 @@ kml_stations <- function (csv.name, shape, kml.name, legend=TRUE, balloon = TRUE
   kml_View(kml.name)
 }
 
-#kml_stations("ChargeStations.csv", "http://maps.google.com/mapfiles/kml/paddle/wht-blank.png", "Stations2015.kml", legend=TRUE, balloon=TRUE)
+# kml_stations("ChargeStations.csv", "http://maps.google.com/mapfiles/kml/paddle/wht-blank.png", "Stations2015.kml", legend=TRUE, balloon=TRUE)
 #------------------------------------------------------------------------------------------- 
 # Create KML vector layer of Charge Point locations in 2013
 #-------------------------------------------------------------------------------------------
@@ -73,6 +73,14 @@ proj4string(CP_NUON01) <- CRS("+proj=longlat +datum=WGS84")
 hist(NuonClean01$kWh)
 CP_NUON01.st <- STIDF(CP_NUON01, time=NuonClean01$BEGIN_CS, data=NuonClean01[,c("Address", "Provider","kWh")], endTime=NuonClean01$END_CS)
 View(CP_NUON01.st)
+
+# STIDF Essent januari 2013
+EssentClean01$Address <- paste(EssentClean01$Street, EssentClean01$HouseNumber, sep="_")
+CP_Essent01 <- SpatialPoints(EssentClean01[,c("Longitude","Latitude")])
+proj4string(CP_Essent01) <- CRS("+proj=longlat +datum=WGS84")
+hist(EssentClean01$kWh)
+CP_Essent01.st <- STIDF(CP_Essent01, time=EssentClean01$BEGIN_CS, data=EssentClean01[,c("Address", "Provider","kWh")], endTime=EssentClean01$END_CS)
+View(CP_Essent01.st)
 
 #-------------------------------------------------------------------------------------------  
 # Create STIDF from Nuon June 2013
@@ -99,12 +107,14 @@ Session_vertical <- function (obj, kml.name){
   proj4string(obj.sp) <- CRS("+proj=longlat +datum=WGS84")
   
   kml_open(kml.name)
-  kml_layer.SpatialPoints(obj.sp[c("kWh","Address", "Provider")], TimeSpan.begin=format(obj.sp$BEGIN_CS, "%Y-%m-%dT%H:%M:%SZ"), TimeSpan.end=format(obj.sp$END_CS, "%Y-%m-%dT%H:%M:%SZ"), altitude=kWh*10, colour=log1p(kWh), colour_scale=R_pal[["heat_colors"]], shape=shape, labels="", altitudeMode="relativeToGround", balloon = TRUE)
+  kml_layer.SpatialPoints(obj.sp[c("kWh","Address", "Provider", "BEGIN_CS", "END_CS")], TimeSpan.begin=format(obj.sp$BEGIN_CS, "%Y-%m-%dT%H:%M:%SZ"), TimeSpan.end=format(obj.sp$END_CS, "%Y-%m-%dT%H:%M:%SZ"), altitude=kWh*10, colour=log1p(kWh), colour_scale=R_pal[["heat_colors"]], shape=shape, labels="", altitudeMode="relativeToGround", balloon = TRUE)
   kml_close(kml.name)
   kml_View(kml.name)
 } 
 
 Session_vertical(NuonClean01, "NuonJanuari2013.kml")
+Session_vertical(NuonClean06, "NuonJuni2013.kml")
+Session_vertical(EssentClean01, "EssentJanuari2013.kml")
 
 ## Spacetime density:
 library(spatstat)
