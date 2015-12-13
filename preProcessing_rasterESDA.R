@@ -31,6 +31,9 @@ get.stations <- function(webaddress, file.name){
   Stations$Address <- paste(Stations$Street, Stations$HouseNumber, Stations$PostalCode, sep=" ")
   # Remove double entries based on unique values in column "CPExternalID" 
   Stations <- Stations[ !duplicated(Stations["CPExternalID"]),]
+  # Write to csv 
+  write.csv(Stations, file = "Stations.csv")
+  return(Stations)
 } 
 
 # get.stations("https://api.essent.nl/generic/downloadChargingStations?latitude_low=52.30567123031878&longtitude_low=4.756801078125022&latitude_high=52.43772606594848&longtitude_high=5.086390921875022&format=CSV", "ChargeStations.csv")
@@ -40,16 +43,25 @@ get.stations <- function(webaddress, file.name){
 
 # Mannualy put charge data into workspace directory and save as CSV-file!!
 list.files()
-csv.file <- "rapportage_verbruiksdata 201301 + 201306.csv"
-prep_NUON <- function (csv.file){
+
+# Split (subset) Nuon files
+NuonSplit <- read.csv("rapportage_verbruiksdata 201301 + 201306.csv", header = T, sep=",")
+NuonSplit$BEGIN_CS <- as.POSIXct(paste(NuonSplit$Start), format="%d-%m-%Y %H:%M", tz = "GMT")
+NuonSplit$END_CS <- as.POSIXct(paste(NuonSplit$Eind), format="%d-%m-%Y %H:%M",  tz = "GMT")
+NuonJanuari2013 <- subset(NuonSplit, BEGIN_CS <= as.POSIXct("2013-01-31 00:00"))
+NuonJune2013 <- subset(NuonSplit, BEGIN_CS > as.POSIXct("2013-01-31 00:00"))
+write.csv(NuonJanuari2013, file= paste("NuonJanuari2013", "csv", sep = "."))
+write.csv(NuonJune2013, file= paste("NuonJune2013", "csv", sep = "."))
+
+prep_NUON <- function (csv.file, obj.name){
   # Read csv files and create R-objects
   NuonRaw <- read.csv(csv.file,  header = T, sep=",")
   # Remove double sessions  
   NuonRaw <- NuonRaw[ !duplicated(NuonRaw["Sessie"]),] # Why are there double sessions in the first place?
   # Set date and time 
-  NuonRaw$BEGIN_CS <- as.POSIXct(paste(NuonRaw$Start), format="%d-%m-%Y %H:%M", tz = "GMT")
-  NuonRaw$END_CS <- as.POSIXct(paste(NuonRaw$Eind), format="%d-%m-%Y %H:%M",  tz = "GMT")
-    # Rename columns: 
+    # NuonRaw$BEGIN_CS <- as.POSIXct(paste(NuonRaw$Start), format="%d-%m-%Y %H:%M", tz = "GMT")
+    # NuonRaw$END_CS <- as.POSIXct(paste(NuonRaw$Eind), format="%d-%m-%Y %H:%M",  tz = "GMT")
+  # Rename columns: 
   names(NuonRaw)[names(NuonRaw)=="Straat"] <- "Street"
   names(NuonRaw)[names(NuonRaw)=="Huisnummer"] <- "HouseNumber"
   names(NuonRaw)[names(NuonRaw)=="Postcode"] <- "PostalCode"
@@ -59,7 +71,6 @@ prep_NUON <- function (csv.file){
   NuonRaw$PostalCode <- gsub(" ", "", NuonRaw$PostalCode, fixed = T)
   # Join Charge data with xy-coordinates
   NuonRaw$Address <- paste(NuonRaw$Street, NuonRaw$HouseNumber, NuonRaw$PostalCode, sep=" ")
-  View(NuonRaw)
   NuonRaw.Stations <- join(NuonRaw, Stations, by="Address", type = "left")
   # Remove duplicates in joined file 
   NuonRaw.Sessions <- NuonRaw.Stations[ !duplicated(NuonRaw.Stations["Session_ID"]),]
@@ -69,83 +80,68 @@ prep_NUON <- function (csv.file){
   View(EssentRaw01)
   # Remove unnecessary columns
   keep <- c("Session_ID", "BEGIN_CS", "END_CS", "CONNECT_TIME", "kWh", "Street", "HouseNumber", "PostalCode", "Address", "Latitude", "Longitude", "Provider")
-  NuonRaw_clean <- NuonRaw.Sessions[keep]
-  # Split Nuon dataset into Januari and June 
-  NuonClean01 <- subset(NuonRaw_clean, BEGIN_CS <= as.POSIXct("2013-01-31 00:00"))
-  NuonClean06 <- subset(NuonRaw_clean, BEGIN_CS > as.POSIXct("2013-01-31 00:00"))
+  NuonClean <- NuonRaw.Sessions[keep]
+  # Write to csv and return object
+  write.csv(NuonClean, file= paste(obj.name, "csv", sep = "."))
+  return(NuonClean)
 } 
+
+# Run function
+# prep_NUON("NuonJanuari2013.csv", "NuonJan2013_clean") 
+# prep_NUON("NuonJune2013.csv", "NuonJun2013_clean") 
 #-------------------------------------------------------------------------------------------  
 # pre-process Essent charge session dataset
 #-------------------------------------------------------------------------------------------
 # Mannualy put charge data into workspace directory and save as CSV-file!!
 list.files()
 
-# Read csv files and create R-objects
-EssentRaw01 <- read.csv("exp_201301-62014.csv",  header = T, sep=",")
-EssentRaw06 <- read.csv("exp_201306-62014.csv",  header = T, sep=",")
+prep_ESSENT <- function(csv.file, obj.name){
+  # Read CSV file
+  EssentRaw <- read.csv(csv.file,  header = T, sep=",")
+  # Set date and time 
+  EssentRaw$BEGIN_DA <- as.character(EssentRaw$BEGIN_LOAD_DATE)
+  EssentRaw$BEGIN_TI <- as.character(EssentRaw$BEGIN_LOAD_TIME)
+  EssentRaw$END_DA <- as.character(EssentRaw$END_LOAD_DATE)
+  EssentRaw$END_TI <- as.character(EssentRaw$END_LOAD_TIME)
+  EssentRaw$BEGIN_CS <- as.POSIXct(paste(EssentRaw$BEGIN_DA, EssentRaw$BEGIN_TI), format="%d.%m.%Y %H:%M:%S", tz = "GMT")
+  EssentRaw$END_CS <- as.POSIXct(paste(EssentRaw$END_DA, EssentRaw$END_TI), format="%d.%m.%Y %H:%M:%S",  tz = "GMT")
+  
+  # Convert energy from factor to numeric
+  EssentRaw$ENERGIE <- as.numeric(EssentRaw$ENERGIE)
 
-# Set date and time 
-EssentRaw01$BEGIN_DA <- as.character(EssentRaw01$BEGIN_LOAD_DATE)
-EssentRaw01$BEGIN_TI <- as.character(EssentRaw01$BEGIN_LOAD_TIME)
-EssentRaw01$END_DA <- as.character(EssentRaw01$END_LOAD_DATE)
-EssentRaw01$END_TI <- as.character(EssentRaw01$END_LOAD_TIME)
-EssentRaw01$BEGIN_CS <- as.POSIXct(paste(EssentRaw01$BEGIN_DA, EssentRaw01$BEGIN_TI), format="%d.%m.%Y %H:%M:%S", tz = "GMT")
-EssentRaw01$END_CS <- as.POSIXct(paste(EssentRaw01$END_DA, EssentRaw01$END_TI), format="%d.%m.%Y %H:%M:%S",  tz = "GMT")
+  # Rename columns: 
+  names(EssentRaw)[names(EssentRaw)=="STREET"] <- "Street"
+  names(EssentRaw)[names(EssentRaw)=="HOUSE_NUM1"] <- "HouseNumber"
+  names(EssentRaw)[names(EssentRaw)=="POST_CODE1"] <- "PostalCode"
+  names(EssentRaw)[names(EssentRaw)=="CHARGE_DURATION"] <- "CONNECT_TIME"
+  names(EssentRaw)[names(EssentRaw)=="ENERGIE"] <- "kWh"
+  names(EssentRaw)[names(EssentRaw)=="UNIQUE_ID"] <- "Session_ID"
+  
+  # Remove white space from PostalCode
+  EssentRaw$PostalCode <- as.character(EssentRaw$PostalCode)
+  EssentRaw$PostalCode <- gsub(" ", "", EssentRaw$PostalCode, fixed = T)
+  
+  # Join Charge data with xy-coordinates
+  EssentRaw$Address <- paste(EssentRaw$Street, EssentRaw$HouseNumber, EssentRaw$PostalCode, sep=" ")
+  EssentRaw.Stations <- join(EssentRaw, Stations, by="Address", type = "left", match = "all")
 
-EssentRaw06$BEGIN_DA <- as.character(EssentRaw06$BEGIN_LOAD_DATE)
-EssentRaw06$BEGIN_TI <- as.character(EssentRaw06$BEGIN_LOAD_TIME)
-EssentRaw06$END_DA <- as.character(EssentRaw06$END_LOAD_DATE)
-EssentRaw06$END_TI <- as.character(EssentRaw06$END_LOAD_TIME)
-EssentRaw06$BEGIN_CS <- as.POSIXct(paste(EssentRaw06$BEGIN_DA, EssentRaw06$BEGIN_TI), format="%d.%m.%Y %H:%M:%S", tz = "GMT")
-EssentRaw06$END_CS <- as.POSIXct(paste(EssentRaw06$END_DA, EssentRaw06$END_TI), format="%d.%m.%Y %H:%M:%S",  tz = "GMT")
-# Convert energy from factor to numeric
-EssentRaw01$ENERGIE <- as.numeric(EssentRaw01$ENERGIE)
-EssentRaw06$ENERGIE <- as.numeric(EssentRaw06$ENERGIE)
+  # Remove duplicates in joined file 
+  EssentRaw.Stations$REMOVE_ID <- paste(EssentRaw.Stations$Session_ID, EssentRaw.Stations$METER_READ_BEGIN, EssentRaw.Stations$Address)
+  EssentRaw.Sessions <- EssentRaw.Stations[ !duplicated(EssentRaw.Stations["REMOVE_ID"]),]
+  # Not the right combination of joins! --> find out where the duplicates come from! 
+  
+  # Remove NA values in Latitude column 
+  EssentRaw.Sessions <- EssentRaw.Sessions[!is.na(EssentRaw.Sessions$Latitude),] 
+  
+  # Remove unnecessary columns
+  keep <- c("Session_ID", "BEGIN_CS", "END_CS", "CONNECT_TIME", "kWh", "Street", "HouseNumber", "PostalCode", "Address", "Latitude", "Longitude", "Provider")
+  EssentClean <- EssentRaw.Sessions[keep]
+  
+  # Write to csv and return object
+  write.csv(EssentClean, file = paste(obj.name, "csv", sep =".")) 
+  return(EssentClean)
+}
 
-# Rename columns: 
-names(EssentRaw01)[names(EssentRaw01)=="STREET"] <- "Street"
-names(EssentRaw01)[names(EssentRaw01)=="HOUSE_NUM1"] <- "HouseNumber"
-names(EssentRaw01)[names(EssentRaw01)=="POST_CODE1"] <- "PostalCode"
-names(EssentRaw01)[names(EssentRaw01)=="CHARGE_DURATION"] <- "CONNECT_TIME"
-names(EssentRaw01)[names(EssentRaw01)=="ENERGIE"] <- "kWh"
-names(EssentRaw01)[names(EssentRaw01)=="UNIQUE_ID"] <- "Session_ID"
-
-names(EssentRaw06)[names(EssentRaw06)=="STREET"] <- "Street"
-names(EssentRaw06)[names(EssentRaw06)=="HOUSE_NUM1"] <- "HouseNumber"
-names(EssentRaw06)[names(EssentRaw06)=="POST_CODE1"] <- "PostalCode"
-names(EssentRaw06)[names(EssentRaw06)=="CHARGE_DURATION"] <- "CONNECT_TIME"
-names(EssentRaw06)[names(EssentRaw06)=="ENERGIE"] <- "kWh"
-names(EssentRaw06)[names(EssentRaw06)=="UNIQUE_ID"] <- "Session_ID"
-
-# Remove white space from PostalCode
-EssentRaw01$PostalCode <- as.character(EssentRaw01$PostalCode)
-EssentRaw01$PostalCode <- gsub(" ", "", EssentRaw01$PostalCode, fixed = T)
-EssentRaw06$PostalCode <- as.character(EssentRaw06$PostalCode)
-EssentRaw06$PostalCode <- gsub(" ", "", EssentRaw06$PostalCode, fixed = T)
-
-# Join Charge data with xy-coordinates
-EssentRaw01$Address <- paste(EssentRaw01$Street, EssentRaw01$HouseNumber, EssentRaw01$PostalCode, sep=" ")
-EssentRaw01.Stations <- join(EssentRaw01, Stations, by="Address", type = "left", match = "all")
-EssentRaw06$Address <- paste(EssentRaw06$Street, EssentRaw06$HouseNumber, EssentRaw06$PostalCode, sep=" ")
-EssentRaw06.Stations <- join(EssentRaw06, Stations, by="Address", type = "left")
-View(EssentRaw06.Stations)
-# Remove NA values in Latitude column 
-EssentRaw01.Stations <- EssentRaw01.Stations[!is.na(EssentRaw01.Stations$Latitude),] 
-EssentRaw06.Stations <- EssentRaw06.Stations[!is.na(EssentRaw06.Stations$Latitude),] 
-View(EssentRaw01.Stations)
-str(keep)
-# Remove unnecessary columns
-EssentClean01 <- EssentRaw01.Stations[keep]
-EssentClean06 <- EssentRaw06.Stations[keep]
-
-View(EssentClean01)
-View(EssentClean06)
-
-#-------------------------------------------------------------------------------------------  
-# Write object to csv file for viewing outside R environment
-#-------------------------------------------------------------------------------------------  
-write.csv(NuonClean01, file= "NuonClean01.csv")
-write.csv(NuonClean06, file= "NuonClean06.csv")
-write.csv(EssentClean01, file = "EssentClean01.csv")
-write.csv(EssentClean06, file = "EssentClean06.csv")
-write.csv(Stations, file = "StationsClean.csv")
+# Run function
+# prep_ESSENT("exp_201301-62014.csv", "EssentJan2013_clean")
+# prep_ESSENT("exp_201306-62014.csv", "EssentJun2013_clean")
