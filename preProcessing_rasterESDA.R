@@ -1,7 +1,7 @@
 # Purpose        : Preprocess Charge point and Charge session data for use for ESDA tool;
 # Maintainer     : Daniel Scheerooren (daniel.scheerooren@wur.nl);
 # Status         : In progress
-# Last update    : 04-12-2015
+# Last update    : 13-12-2015
 # Note           : Subscript of main_rasterESDA.R
 
 
@@ -107,8 +107,11 @@ prep_ESSENT <- function(csv.file, obj.name){
   EssentRaw$END_CS <- as.POSIXct(paste(EssentRaw$END_DA, EssentRaw$END_TI), format="%d.%m.%Y %H:%M:%S",  tz = "GMT")
   
   # Convert energy from factor to numeric
+  EssentRaw$ENERGIE <- as.character(EssentRaw$ENERGIE)
+  EssentRaw$ENERGIE <- gsub(",", "", EssentRaw$ENERGIE, fixed = TRUE)
   EssentRaw$ENERGIE <- as.numeric(EssentRaw$ENERGIE)
-
+  EssentRaw$ENERGIE <- (EssentRaw$ENERGIE / 10000)
+  
   # Rename columns: 
   names(EssentRaw)[names(EssentRaw)=="STREET"] <- "Street"
   names(EssentRaw)[names(EssentRaw)=="HOUSE_NUM1"] <- "HouseNumber"
