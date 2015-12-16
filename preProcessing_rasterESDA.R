@@ -33,10 +33,10 @@ get.stations <- function(webaddress, file.name){
   Stations <- Stations[ !duplicated(Stations["CPExternalID"]),]
   # Write to csv 
   write.csv(Stations, file = "Stations.csv")
-  return(Stations)
+  return (Stations)
 } 
 
-# get.stations("https://api.essent.nl/generic/downloadChargingStations?latitude_low=52.30567123031878&longtitude_low=4.756801078125022&latitude_high=52.43772606594848&longtitude_high=5.086390921875022&format=CSV", "ChargeStations.csv")
+Stations <- get.stations("https://api.essent.nl/generic/downloadChargingStations?latitude_low=52.30567123031878&longtitude_low=4.756801078125022&latitude_high=52.43772606594848&longtitude_high=5.086390921875022&format=CSV", "ChargeStations.csv")
 #-------------------------------------------------------------------------------------------  
 # pre-process Nuon charge session dataset
 #-------------------------------------------------------------------------------------------
@@ -77,7 +77,7 @@ prep_NUON <- function (csv.file, obj.name){
   # Remove NA values in Latitude column 
   NuonRaw.Sessions <- NuonRaw.Sessions[!is.na(NuonRaw.Sessions$Latitude),] # Many failed matches (2778!) 
   #Maybe because of case sensitive join opperation?
-  View(EssentRaw01)
+  #View(NuonRaw)
   # Remove unnecessary columns
   keep <- c("Session_ID", "BEGIN_CS", "END_CS", "CONNECT_TIME", "kWh", "Street", "HouseNumber", "PostalCode", "Address", "Latitude", "Longitude", "Provider")
   NuonClean <- NuonRaw.Sessions[keep]
@@ -87,8 +87,8 @@ prep_NUON <- function (csv.file, obj.name){
 } 
 
 # Run function
-# prep_NUON("NuonJanuari2013.csv", "NuonJan2013_clean") 
-# prep_NUON("NuonJune2013.csv", "NuonJun2013_clean") 
+NuonJanClean <- prep_NUON("NuonJanuari2013.csv", "NuonJan2013_clean") 
+# NuonJunClean <- prep_NUON("NuonJune2013.csv", "NuonJun2013_clean") 
 #-------------------------------------------------------------------------------------------  
 # pre-process Essent charge session dataset
 #-------------------------------------------------------------------------------------------
@@ -142,9 +142,8 @@ prep_ESSENT <- function(csv.file, obj.name){
   
   # Write to csv and return object
   write.csv(EssentClean, file = paste(obj.name, "csv", sep =".")) 
-  return(EssentClean)
 }
 
 # Run function
-# prep_ESSENT("exp_201301-62014.csv", "EssentJan2013_clean")
-# prep_ESSENT("exp_201306-62014.csv", "EssentJun2013_clean")
+EssentJanClean <- prep_ESSENT("exp_201301-62014.csv", "EssentJan2013_clean")
+# EssentJunClean <- prep_ESSENT("exp_201306-62014.csv", "EssentJun2013_clean")

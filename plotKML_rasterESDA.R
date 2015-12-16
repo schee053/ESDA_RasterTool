@@ -67,20 +67,34 @@ Stations2013 <- join(XYunique, Stations, by = LonLat , type = "left", match = "f
 # Create STIDF from Nuon Januari 2013
 #-------------------------------------------------------------------------------------------
 
-NuonClean01$Address <- paste(NuonClean01$Street, NuonClean01$HouseNumber, sep="_")
-CP_NUON01 <- SpatialPoints(NuonClean01[,c("Longitude","Latitude")])
+ST_DF <- function (obj){
+  obj$Address <- paste(obj$Street, obj$HouseNumber, sep="_")
+  CP_obj <- SpatialPoints(obj[,c("Longitude","Latitude")])
+  proj4string(CP_obj) <- CRS("+proj=longlat +datum=WGS84")
+  CP_obj.st <- STIDF(CP_obj, time=obj$BEGIN_CS, data=obj[,c("Address", "Provider","kWh")], endTime=obj$END_CS)
+  return (CP_obj.st)
+} 
+
+EssentJanSTIDF <- ST_DF(EssentJanClean)
+NuonTest <- ST_DF(NuonJanClean)
+CP_obj <- SpatialPoints(EssentJanClean[,c("Longitude","Latitude")])
+
+NuonJanClean$Address <- paste(NuonJanClean$Street,NuonJanClean$HouseNumber, sep="_")
+CP_NUON01 <- SpatialPoints(NuonJanClean[,c("Longitude","Latitude")])
 proj4string(CP_NUON01) <- CRS("+proj=longlat +datum=WGS84")
-hist(NuonClean01$kWh)
-CP_NUON01.st <- STIDF(CP_NUON01, time=NuonClean01$BEGIN_CS, data=NuonClean01[,c("Address", "Provider","kWh")], endTime=NuonClean01$END_CS)
+hist(NuonJanClean$kWh)
+str(NuonJanClean)
+CP_NUON01.st <- STIDF(CP_NUON01, time=NuonJanClean$BEGIN_CS, data=NuonJanClean[,c("Address", "Provider","kWh")], endTime=NuonJanClean$END_CS)
 View(CP_NUON01.st)
 
-# STIDF Essent januari 2013
-EssentClean01$Address <- paste(EssentClean01$Street, EssentClean01$HouseNumber, sep="_")
-CP_Essent01 <- SpatialPoints(EssentClean01[,c("Longitude","Latitude")])
-proj4string(CP_Essent01) <- CRS("+proj=longlat +datum=WGS84")
-hist(EssentClean01$kWh)
-CP_Essent01.st <- STIDF(CP_Essent01, time=EssentClean01$BEGIN_CS, data=EssentClean01[,c("Address", "Provider","kWh")], endTime=EssentClean01$END_CS)
-View(CP_Essent01.st)
+
+# NuonClean01$Address <- paste(NuonClean01$Street, NuonClean01$HouseNumber, sep="_")
+# CP_NUON01 <- SpatialPoints(NuonClean01[,c("Longitude","Latitude")])
+# proj4string(CP_NUON01) <- CRS("+proj=longlat +datum=WGS84")
+# hist(NuonClean01$kWh)
+# CP_NUON01.st <- STIDF(CP_NUON01, time=NuonClean01$BEGIN_CS, data=NuonClean01[,c("Address", "Provider","kWh")], endTime=NuonClean01$END_CS)
+# View(CP_NUON01.st)
+
 
 #-------------------------------------------------------------------------------------------  
 # Create STIDF from Nuon June 2013
