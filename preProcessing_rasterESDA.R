@@ -17,6 +17,7 @@ getwd()
 # Download and open required packages
 if (!require(plyr)) install.packages('plyr')
 if (!require(RCurl)) install.packages('RCurl')
+if (!require(chron)) install.packages('chron')
 
 #-------------------------------------------------------------------------------------------  
 # pre-process Charge Point Dataset (latitude/longitude)
@@ -76,10 +77,12 @@ prep_NUON <- function (csv.file, obj.name){
   NuonRaw.Sessions <- NuonRaw.Stations[ !duplicated(NuonRaw.Stations["Session_ID"]),]
   # Remove NA values in Latitude column 
   NuonRaw.Sessions <- NuonRaw.Sessions[!is.na(NuonRaw.Sessions$Latitude),] # Many failed matches (2778!) 
+  # Add weekdays column
+  NuonRaw.Sessions$Weekday <- weekdays(as.Date(NuonRaw.Sessions$BEGIN_CS, "%Y-%m-%d %H:%M:%S", tz = "GMT"))
   #Maybe because of case sensitive join opperation?
   #View(NuonRaw)
   # Remove unnecessary columns
-  keep <- c("Session_ID", "BEGIN_CS", "END_CS", "CONNECT_TIME", "kWh", "Street", "HouseNumber", "PostalCode", "Address", "Latitude", "Longitude", "Provider")
+  keep <- c("Session_ID", "BEGIN_CS", "END_CS", "Weekday", "CONNECT_TIME", "kWh", "Street", "HouseNumber", "PostalCode", "Address", "Latitude", "Longitude", "Provider")
   NuonClean <- NuonRaw.Sessions[keep]
   # Write to csv and return object
   write.csv(NuonClean, file= paste(obj.name, "csv", sep = "."))
@@ -88,6 +91,7 @@ prep_NUON <- function (csv.file, obj.name){
 
 # Run function
 NuonJanClean <- prep_NUON("NuonJanuari2013.csv", "NuonJan2013_clean") 
+View(NuonJanClean)
 # NuonJunClean <- prep_NUON("NuonJune2013.csv", "NuonJun2013_clean") 
 #-------------------------------------------------------------------------------------------  
 # pre-process Essent charge session dataset
@@ -136,8 +140,11 @@ prep_ESSENT <- function(csv.file, obj.name){
   # Remove NA values in Latitude column 
   EssentRaw.Sessions <- EssentRaw.Sessions[!is.na(EssentRaw.Sessions$Latitude),] 
   
+  # Add weekdays column
+  EssentRaw.Sessions$Weekday <- weekdays(as.Date(EssentRaw.Sessions$BEGIN_CS, "%Y-%m-%d %H:%M:%S", tz = "GMT"))
+  
   # Remove unnecessary columns
-  keep <- c("Session_ID", "BEGIN_CS", "END_CS", "CONNECT_TIME", "kWh", "Street", "HouseNumber", "PostalCode", "Address", "Latitude", "Longitude", "Provider")
+  keep <- c("Session_ID", "BEGIN_CS", "END_CS", "Weekday", "CONNECT_TIME", "kWh", "Street", "HouseNumber", "PostalCode", "Address", "Latitude", "Longitude", "Provider")
   EssentClean <- EssentRaw.Sessions[keep]
   
   # Write to csv and return object

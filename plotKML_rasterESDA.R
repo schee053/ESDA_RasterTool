@@ -11,10 +11,12 @@ getwd()
 
 # Download and open required packages
 require(plotKML)
+require(spacetime)
 require(plyr)
 require(RSAGA)
 require(rgdal)
 require(raster)
+require(sp)
 #-------------------------------------------------------------------------------------------  
 # Questions about plotKML:
 #-------------------------------------------------------------------------------------------
@@ -44,7 +46,7 @@ kml_stations <- function (csv.name, shape, kml.name, legend=TRUE, balloon = TRUE
   kml_open(kml.name)
   kml_legend.bar(obj$Provider, legend.pal=SAGA_pal[[1]][c(1,20)], legend.file = "Providers.png") 
   kml_screen(image.file = "Providers.png", position = "UL", sname = "Providers")
-  kml_layer(obj[c("Provider","Address")], shape = shape, LabelScale =.5, colour=Provider, colour_scale=SAGA_pal[[1]], points_names="", balloon=T)
+  kml_layer(obj[c("Provider","Address")], shape = shape, LabelScale =.5, colour=Provider, colour_scale=SAGA_pal[[1]], points_names="", balloon=TRUE)
   kml_close(kml.name)
   kml_View(kml.name)
 }
@@ -71,7 +73,9 @@ ST_DF <- function (obj){
   obj$Address <- paste(obj$Street, obj$HouseNumber, sep="_")
   CP_obj <- SpatialPoints(obj[,c("Longitude","Latitude")])
   proj4string(CP_obj) <- CRS("+proj=longlat +datum=WGS84")
-  CP_obj.st <- STIDF(CP_obj, time=obj$BEGIN_CS, data=obj[,c("Address", "Provider","kWh")], endTime=obj$END_CS)
+  obj$BEGIN_CS <- as.POSIXct(paste(obj$BEGIN_CS), format="%Y-%m-%d %H:%M:%S", tz = "GMT")
+  obj$END_CS <- as.POSIXct(paste(obj$END_CS), format="%Y-%m-%d %H:%M:%S", tz = "GMT")
+  CP_obj.st <- STIDF(CP_obj, time=obj$BEGIN_CS, data=obj[,c("Address", "Provider","kWh", "Weekday")], endTime=obj$END_CS)
   return (CP_obj.st)
 } 
 
@@ -117,10 +121,11 @@ kml(CP_NUON01.st[1:7378], colour=log1p(kWh), shape=shape, labels="", kmz=F, ball
 
 Session_vertical <- function (obj, kml.name){ 
   obj.sp <- obj
-  coordinates(obj.sp) <- ~ Longitude + Latitude
   proj4string(obj.sp) <- CRS("+proj=longlat +datum=WGS84")
   
   kml_open(kml.name)
+  kml_legend.bar(obj.sp$Weekday, legend.pal=SAGA_pal[[1]][c(1,7)], legend.file = "Weekday.png")
+  kml_screen(image.file = "Weekday.png", position = "UL", sname = "Weekday")
   kml_layer.SpatialPoints(obj.sp[c("kWh","Address", "Provider", "BEGIN_CS", "END_CS")], TimeSpan.begin=format(obj.sp$BEGIN_CS, "%Y-%m-%dT%H:%M:%SZ"), TimeSpan.end=format(obj.sp$END_CS, "%Y-%m-%dT%H:%M:%SZ"), altitude=kWh*10, colour=log1p(kWh), colour_scale=R_pal[["heat_colors"]], shape=shape, labels="", altitudeMode="relativeToGround", balloon = TRUE)
   kml_close(kml.name)
   kml_View(kml.name)
