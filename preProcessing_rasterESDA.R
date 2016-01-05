@@ -6,12 +6,6 @@
 
 
 # Set directory
-mainDir <- "M:/MyDocuments/ESDA_RasterTool/"
-subDir <- "Datasets"
-outputDir <- "Output"
-dir.create(file.path(mainDir, subDir), showWarnings = F)
-dir.create(file.path(mainDir, outputDir), showWarnings = F)
-setwd(file.path(mainDir, subDir))
 getwd()
 
 # Download and open required packages
@@ -33,11 +27,11 @@ get.stations <- function(webaddress, file.name){
   # Remove double entries based on unique values in column "CPExternalID" 
   Stations <- Stations[ !duplicated(Stations["CPExternalID"]),]
   # Write to csv 
-  write.csv(Stations, file = "Stations.csv")
+  write.csv(Stations, file= paste(file.name, "csv", sep = "."))
   return (Stations)
 } 
 
-Stations <- get.stations("https://api.essent.nl/generic/downloadChargingStations?latitude_low=52.30567123031878&longtitude_low=4.756801078125022&latitude_high=52.43772606594848&longtitude_high=5.086390921875022&format=CSV", "ChargeStations.csv")
+Stations <- get.stations("https://api.essent.nl/generic/downloadChargingStations?latitude_low=52.30567123031878&longtitude_low=4.756801078125022&latitude_high=52.43772606594848&longtitude_high=5.086390921875022&format=CSV", "ChargeStations")
 #-------------------------------------------------------------------------------------------  
 # pre-process Nuon charge session dataset
 #-------------------------------------------------------------------------------------------
@@ -90,9 +84,9 @@ prep_NUON <- function (csv.file, obj.name){
 } 
 
 # Run function
-NuonJanClean <- prep_NUON("NuonJanuari2013.csv", "NuonJan2013_clean") 
-View(NuonJanClean)
-# NuonJunClean <- prep_NUON("NuonJune2013.csv", "NuonJun2013_clean") 
+Nuon_Januari2013 <- prep_NUON("NuonJanuari2013.csv", "Nuon_Januari2013")
+Nuon_June2013 <- prep_NUON("NuonJune2013.csv", "Nuon_June2013") 
+
 #-------------------------------------------------------------------------------------------  
 # pre-process Essent charge session dataset
 #-------------------------------------------------------------------------------------------
@@ -109,6 +103,9 @@ prep_ESSENT <- function(csv.file, obj.name){
   EssentRaw$END_TI <- as.character(EssentRaw$END_LOAD_TIME)
   EssentRaw$BEGIN_CS <- as.POSIXct(paste(EssentRaw$BEGIN_DA, EssentRaw$BEGIN_TI), format="%d.%m.%Y %H:%M:%S", tz = "GMT")
   EssentRaw$END_CS <- as.POSIXct(paste(EssentRaw$END_DA, EssentRaw$END_TI), format="%d.%m.%Y %H:%M:%S",  tz = "GMT")
+  
+  # Remove sessions from December 2012
+  EssentRaw <- subset(EssentRaw, BEGIN_CS > as.POSIXct("2013-01-01 00:00"))
   
   # Convert energy from factor to numeric
   EssentRaw$ENERGIE <- as.character(EssentRaw$ENERGIE)
@@ -149,8 +146,9 @@ prep_ESSENT <- function(csv.file, obj.name){
   
   # Write to csv and return object
   write.csv(EssentClean, file = paste(obj.name, "csv", sep =".")) 
+  return (EssentClean)
 }
 
 # Run function
-EssentJanClean <- prep_ESSENT("exp_201301-62014.csv", "EssentJan2013_clean")
-# EssentJunClean <- prep_ESSENT("exp_201306-62014.csv", "EssentJun2013_clean")
+Essent_Januari2013 <- prep_ESSENT("exp_201301-62014.csv", "Essent_Januari2013")
+Essent_June2013 <- prep_ESSENT("exp_201306-62014.csv", "Essent_June2013")

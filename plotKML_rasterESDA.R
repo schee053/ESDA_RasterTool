@@ -10,24 +10,19 @@ mainDir <- "M:/MyDocuments/ESDA_RasterTool/"
 getwd()
 
 # Download and open required packages
-require(plotKML)
-require(spacetime)
-require(plyr)
-require(RSAGA)
-require(rgdal)
-require(raster)
-require(sp)
+if (!require(plotKML)) install.packages('plotKML')
+if (!require(spacetime)) install.packages('spacetime')
+if (!require(plyr)) install.packages('plyr')
+if (!require(RSAGA)) install.packages('RSAGA')
+if (!require(rgdal)) install.packages('rgdal')
+if (!require(sp)) install.packages('sp')
+
 #-------------------------------------------------------------------------------------------  
 # Questions about plotKML:
 #-------------------------------------------------------------------------------------------
 
-
-# How to add a legend in "plotKML" (instead of kml_layer)?
-# How to to make same color legend and map in kml_layer/png (see bellow)?
-# It is possible to plot multiple layers in one kml. Also with "plotKML"?
-# What is the difference between KML, plotKML and kml_layer
-  # e.g. line 74 (plot NUON) only works with KML, and not plotKML...?
-
+# How to to make each session have its own color?
+# How to slow down time?
 
 #-------------------------------------------------------------------------------------------  
 # Create KML vector layer of Charge Point locations in 2015
@@ -51,7 +46,7 @@ kml_stations <- function (csv.name, shape, kml.name, legend=TRUE, balloon = TRUE
   kml_View(kml.name)
 }
 
-# kml_stations("ChargeStations.csv", "http://maps.google.com/mapfiles/kml/paddle/wht-blank.png", "Stations2015.kml", legend=TRUE, balloon=TRUE)
+kml_stations("ChargeStations.csv", "http://maps.google.com/mapfiles/kml/paddle/wht-blank.png", "Stations2015.kml", legend=TRUE, balloon=TRUE)
 #------------------------------------------------------------------------------------------- 
 # Create KML vector layer of Charge Point locations in 2013
 #-------------------------------------------------------------------------------------------
